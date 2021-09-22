@@ -49,7 +49,9 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
         String encode = BcryptUtil.encode(user.getPassword());
         user.setPassword(encode);
         //设置账户
-        user.setAccount(idWorker.nextIdString());
+        if (user.getAccount() == null){
+            user.setAccount(idWorker.nextIdString());
+        }
         //设置ID
         //user.setId(idWorker.nextIdString());
         //设置token
@@ -134,5 +136,34 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
         redisService.set(KeyValueConstant.userToken + user.getAccount() , token, 3600);
 
         return user;
+    }
+
+    /**
+     * 账号密码登录
+     * @param account
+     * @param password
+     * @return
+     */
+    @Override
+    public User accountLogin(String account, String password) {
+        User user = userMapper.selectOne(new LambdaQueryWrapper<User>().eq(User::getAccount, account));
+        if (user != null){
+            boolean match = BcryptUtil.match(password,user.getPassword());
+            //System.out.println("密码验证：" + match);
+            //密码匹配
+            if (match){
+                //获取更新token
+                String token = jwtUtil.createJWT(user);
+                user.setToken(token) ;
+                int update = userMapper.update(null, new LambdaUpdateWrapper<User>().set(User::getToken, token).eq(User::getAccount, user.getAccount()));
+                //System.out.println("createToken: " + token);
+                //update = userMapper.update(null, new LambdaUpdateWrapper<User>().set(User::getToken, token).eq(User::getAccount, user.getAccount()));
+                //System.out.println("返回对象");
+                return user;
+            }else{
+                return null ;
+            }
+        }
+        return null;
     }
 }

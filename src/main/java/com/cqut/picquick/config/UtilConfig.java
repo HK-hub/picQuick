@@ -1,9 +1,7 @@
 package com.cqut.picquick.config;
 
-import com.cqut.picquick.util.BcryptUtil;
-import com.cqut.picquick.util.IdWorker;
-import com.cqut.picquick.util.ImgStringUtil;
-import com.cqut.picquick.util.RandomStringUtil;
+import com.cqut.picquick.util.*;
+
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -29,6 +27,11 @@ public class UtilConfig {
     public ImgStringUtil getImgStringUtil(){
 
         return new ImgStringUtil() ;
+    }
+
+    @Bean
+    public JwtUtil getJwtUtil(){
+        return new JwtUtil() ;
     }
 
 

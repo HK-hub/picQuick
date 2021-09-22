@@ -11,9 +11,7 @@ import io.swagger.annotations.ApiImplicitParam;
 import io.swagger.annotations.ApiImplicitParams;
 import io.swagger.annotations.ApiOperation;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import javax.servlet.http.HttpServletRequest;
@@ -34,6 +32,7 @@ import java.util.Map;
  * @Modified :
  * @Version : 1.0
  */
+@CrossOrigin
 @RestController
 @RequestMapping(value = "/cloud")
 public class UploadController {
@@ -67,7 +66,7 @@ public class UploadController {
     @ApiImplicitParams(
             @ApiImplicitParam(name = "待上传文件")
     )
-    public ResponseResult uploadMultipleFiles(MultipartFile[] files , HttpServletRequest request){
+    public ResponseResult uploadMultipleFiles(/*@RequestParam("files")*/ MultipartFile[] files , HttpServletRequest request){
 
         System.out.println(files.length);
         for (MultipartFile file : files) {
@@ -80,19 +79,25 @@ public class UploadController {
         Map resultData = (HashMap<String, Object>) responseResult.getData();
         String err = (String) resultData.get("err");
 
-        //上传文件失败
-        if (err != null || !err.isEmpty() || "".equals(err)){
-            return responseResult.setResultCode(ResultCode.SC_EXPECTATION_FAILED) ;
+        if (err == null){
+            return responseResult.setResultCode(ResultCode.SUCCESS_CREATE);
         }
+        //上传文件失败
+        else if (err != null || !err.isEmpty() || "".equals(err)){
+            responseResult.setResultCode(ResultCode.SC_EXPECTATION_FAILED);
+        }
+
         return responseResult.setResultCode(ResultCode.SUCCESS_CREATE);
 
     }
 
 
-
     @ApiOperation("单个文件上传")
     @PostMapping("/single")
-    public ResponseResult uploadSingleFile(MultipartFile file, HttpServletRequest request) throws IOException {
+    @ApiImplicitParams(
+            @ApiImplicitParam(name = "待上传文件")
+    )
+    public ResponseResult uploadSingleFile(@RequestParam("file") MultipartFile file, HttpServletRequest request) throws IOException {
 
         Map<String, Object> resMap = qiniuService.uploadFile(file.getInputStream(), file.getOriginalFilename(), request);
 
@@ -102,16 +107,13 @@ public class UploadController {
         String err = (String) resMap.get("err");
 
         //上传文件失败
-        if (err != null || !err.isEmpty() || "".equals(err)){
-            return responseResult.setResultCode(ResultCode.SC_EXPECTATION_FAILED);
+        if (err == null){
+            return responseResult.setResultCode(ResultCode.SUCCESS_CREATE);
         }
-        return responseResult.setResultCode(ResultCode.SUCCESS_CREATE);
-
+        else if (err != null || !err.isEmpty() || "".equals(err)){
+            responseResult.setResultCode(ResultCode.SC_EXPECTATION_FAILED);
+        }
+        return responseResult;
     }
-
-
-
-
-
 
 }

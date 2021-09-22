@@ -13,6 +13,6 @@ package com.cqut.picquick.common.constant;
 public class KeyValueConstant {
 
     public static String userToken = "USER_TOKEN-" ;
-
+    public static String LOGIN_CODE = "LOGIN_CODE-" ;
 
 }

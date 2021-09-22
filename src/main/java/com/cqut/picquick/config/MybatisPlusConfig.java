@@ -7,6 +7,7 @@ import com.baomidou.mybatisplus.extension.plugins.inner.PaginationInnerIntercept
 import org.mybatis.spring.annotation.MapperScan;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Profile;
 
 /**
  * @author : HK意境
@@ -39,6 +40,15 @@ public class MybatisPlusConfig {
         interceptor.addInnerInterceptor(paginationInnerInterceptor);
         return interceptor;
     }
+
+    /**
+     * SQL执行效率插件
+     */
+  /*  @Bean
+    @Profile({"dev","test"}) // 设置 dev test 环境开启
+    public PerformanceInterceptor performanceInterceptor() {
+        return new PerformanceInterceptor();
+    }*/
 
     /*//ID 生成器
     @Bean

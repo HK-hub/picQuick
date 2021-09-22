@@ -1,14 +1,17 @@
 package com.cqut.picquick.controller;
 
-
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.cqut.picquick.common.ResponseResult;
+import com.cqut.picquick.common.constant.KeyValueConstant;
 import com.cqut.picquick.entity.User;
 import com.cqut.picquick.enums.ResultCode;
+import com.cqut.picquick.provider.CloudStorageProvider;
 import com.cqut.picquick.service.IUserService;
-import com.cqut.picquick.service.impl.UserServiceImpl;
+import com.cqut.picquick.service.RedisService;
+import com.cqut.picquick.util.JwtUtil;
+import com.qiniu.storage.model.DefaultPutRet;
 import io.swagger.annotations.*;
-import io.swagger.v3.oas.annotations.OpenAPIDefinition;
+import org.apache.commons.codec.binary.Base64;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
@@ -31,6 +34,79 @@ public class UserController {
 
     @Autowired()
     private IUserService userService ;
+    @Autowired
+    private RedisService redisService ;
+    @Autowired
+    private CloudStorageProvider cloudStorageProvider ;
+    @Autowired
+    private JwtUtil jwtUtil ;
+
+    /**
+     * @methodName : 用户上传头像
+     * @author : HK意境
+     * @date : 2021/9/20 20:29
+     * @description :
+     * @Todo :
+     * @params :
+         * @param : null
+     * @return : null
+     * @throws:
+     * @Bug :
+     * @Modified :
+     * @Version : 1.0
+     */
+    @ApiOperation("修改用户头像")
+    @PostMapping("/avatar")
+    public ResponseResult updateAvatar(@RequestParam("token")String token, @RequestParam("file") String file) throws Exception {
+
+        //解析Token
+        String account = (String) jwtUtil.parseJWT(token).get("account");
+
+        //构造返回对象
+        ResponseResult responseResult = new ResponseResult(ResultCode.SUCCESS);
+        HashMap<String, Object> resMap = new HashMap<>();
+
+        //头像地址不存在或认证失败
+        if (account == null){
+            System.out.println("认证不通过");
+            resMap.put("err", "头像地址不存在或认证失败");
+            responseResult.setResultCode(ResultCode.FAIL) ;
+        }else {
+            //认证通过
+            //置换头像地址
+            System.out.println("认证通过");
+            //DefaultPutRet putRet = cloudStorageProvider.upload(Base64.decodeBase64(file), "avatar_"+account+".png");
+            cloudStorageProvider.put64image(Base64.decodeBase64(file),"avatar_"+account+".png");
+            String avatarUrl = cloudStorageProvider.getPrivateFile("avatar_"+account, -1);
+            System.out.println("新的头像地址：" + avatarUrl);
+            boolean update = userService.update(new LambdaUpdateWrapper<User>()
+                    .set(User::getAvatarUrl, avatarUrl)
+                    .eq(User::getAccount, account));
+            //更新失败
+            if (!update) {
+                resMap.put("err", "头像地址存在,认证成功,但更新头像失败");
+                responseResult.setResultCode(ResultCode.FAIL);
+            } else {
+                System.out.println("更新成功");
+                User user = userService.getById((String) jwtUtil.parseJWT(token).get("id"));
+                resMap.put("data", user);
+                responseResult.setResultCode(ResultCode.SUCCESS);
+            }
+        }
+        return responseResult.setData(resMap);
+
+    }
+
+    @GetMapping("/ava")
+    public ResponseResult getAvatarInfo(){
+        HashMap<String, Object> resMap = new HashMap<>();
+        resMap.put("url", "http://"+ "qzeut4n5e.hn-bkt.clouddn.com/");
+        resMap.put("Authorization", cloudStorageProvider.getUpToken()) ;
+
+        ResponseResult responseResult = new ResponseResult(ResultCode.SUCCESS,resMap);
+        return  responseResult.setData(resMap) ;
+    }
+
 
     @PostMapping("/login")
     @ApiOperation(value = "一般方法用户登录",notes = "使用username,password")
@@ -50,6 +126,41 @@ public class UserController {
         map.put("user",login) ;
         map.put("token",login.getToken()) ;
         return responseResult.setData(map);
+    }
+
+
+    @PostMapping("/register")
+    @ApiOperation("用户邮箱注册")
+    @ApiImplicitParams(
+            @ApiImplicitParam(value = "username")
+    )
+    public ResponseResult userRegister(@RequestParam(value = "username" , required = false) String username , @RequestParam("account")String account ,
+                                       @RequestParam("type")String type , @RequestParam("password")String password, @RequestParam("authCode")String authCode){
+
+        HashMap<String, Object> resMap = new HashMap<>();
+        ResponseResult responseResult = new ResponseResult();
+
+        User one = userService.getOne(new LambdaUpdateWrapper<User>().eq(User::getEmail, account));
+
+        //账号存在
+        if (one != null){
+            resMap.put("err","账号名已存在");
+            responseResult.setResultCode(ResultCode.FAIL).setData(resMap) ;
+            return responseResult;
+        }
+        String code = redisService.get(KeyValueConstant.LOGIN_CODE + account);
+        //验证码错误
+        if (code == null || !code.equals(authCode)){
+            resMap.put("err","验证码过期或错误");
+            responseResult.setResultCode(ResultCode.FAIL).setData(resMap) ;
+            return responseResult;
+        }
+        one  = new User();
+        one.setUsername(username).setAccount(account).setEmail(account).setPassword(password);
+        userService.addUser(one);
+
+        resMap.put("user",one) ;
+        return responseResult.setResultCode(ResultCode.SUCCESS).setData(resMap);
     }
 
 

@@ -20,6 +20,7 @@ import io.swagger.annotations.ApiImplicitParams;
 import io.swagger.annotations.ApiOperation;
 import org.apache.commons.lang3.StringUtils;
 
+import org.apache.solr.common.util.Hash;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
@@ -59,6 +60,44 @@ public class LoginController {
     private long expirationTime ;
     private static final String loginSubject = "" ;
     private static final String LOGIN_CODE = "LOGIN_CODE-" ;
+
+
+    /**
+     * @methodName : 账号密码登录
+     * @author : HK意境
+     * @date : 2021/9/20 15:55
+     * @description :
+     * @Todo :
+     * @params :
+         * @param : null
+     * @return : null
+     * @throws:
+     * @Bug :
+     * @Modified :
+     * @Version : 1.0
+     */
+    @ApiOperation("账号密码登录")
+    @PostMapping("/accountLogin")
+    public ResponseResult accountLogin(@RequestParam("account")String account , @RequestParam("password")String password){
+
+        //构造返回对象
+        ResponseResult responseResult = new ResponseResult(ResultCode.SUCCESS);
+        HashMap<String, Object> resMap = new HashMap<>();
+        System.out.println("account： " + account);
+        System.out.println("password : " + password);
+        User user = userService.accountLogin(account, password);
+        if (user == null){
+            resMap.put("err","账号或密码错误");
+            responseResult.setResultCode(ResultCode.FAIL).setData(resMap);
+        }else{
+            resMap.put("data",user) ;
+            responseResult.setData(resMap);
+        }
+        System.out.println(user.toString());
+        System.out.println(responseResult.getData().toString());
+        return responseResult;
+    }
+
 
 
     /**
@@ -159,9 +198,7 @@ public class LoginController {
         } catch (IOException e) {
             e.printStackTrace();
         }
-
     }
-
 
     @GetMapping(value = "/qqCallback")
     public ResponseResult wiki(HttpServletRequest request, HttpServletResponse response) throws IOException {
@@ -172,7 +209,6 @@ public class LoginController {
             response.sendRedirect("/qqLogin");
         }
         ResponseResult responseResult = new ResponseResult(ResultCode.SUCCESS);
-
 
         //获取access_token
         CustomToken token = QQCommonUtil.getToken(QQConstant.APP_ID, QQConstant.APP_KEY , code, QQConstant.CALLBACK_URL);
@@ -198,5 +234,3 @@ public class LoginController {
 
 
 }
-//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
-  //      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

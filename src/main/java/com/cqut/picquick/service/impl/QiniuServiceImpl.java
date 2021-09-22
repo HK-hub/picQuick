@@ -1,5 +1,6 @@
 package com.cqut.picquick.service.impl;
 
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.cqut.picquick.common.ResponseResult;
 import com.cqut.picquick.entity.Picture;
@@ -9,6 +10,7 @@ import com.cqut.picquick.provider.CloudStorageProvider;
 import com.cqut.picquick.service.IPictureService;
 import com.cqut.picquick.service.IQiniuService;
 import com.cqut.picquick.service.IUserService;
+import com.cqut.picquick.util.JwtUtil;
 import com.google.gson.Gson;
 import com.qiniu.common.QiniuException;
 import com.qiniu.http.Response;
@@ -50,6 +52,8 @@ public class QiniuServiceImpl implements IQiniuService, InitializingBean {
     private IUserService userService ;
     @Autowired
     private IPictureService pictureService ;
+    @Autowired
+    private JwtUtil jwtUtil ;
 
     @Value("${qiniu.oss.bucket}")
     private String bucket;
@@ -148,7 +152,9 @@ public class QiniuServiceImpl implements IQiniuService, InitializingBean {
                 } else {    //上传失败
                     pictureFailList.add(file.getOriginalFilename());
                 }
-
+                resultMap.put("successList", pictureSuccessList) ;
+                resultMap.put("failList", pictureFailList) ;
+                responseResult.setData(resultMap) ;
 
             }catch (QiniuException exception) {
                 exception.printStackTrace();
@@ -156,15 +162,15 @@ public class QiniuServiceImpl implements IQiniuService, InitializingBean {
             } catch (IOException e) {
 
                 e.printStackTrace();
+            } catch (Exception e) {
+                e.printStackTrace();
             } finally {
-                resultMap.put("successList", pictureSuccessList) ;
-                resultMap.put("failList", pictureFailList) ;
-                responseResult.setData(resultMap) ;
+
             }
         }
 
 
-        return null;
+        return responseResult;
     }
 
     @Override
@@ -187,24 +193,30 @@ public class QiniuServiceImpl implements IQiniuService, InitializingBean {
         try {
             DefaultPutRet defaultPutRet = cloudStorageProvider.upload(bufferedInputStream, fileName);
 
-            String token = request.getHeader("Authorization");
+            //获取认证信息
+            String token = request.getHeader("token");
 
             HashMap<String, Object> attr = new HashMap<>();
             attr.put("name",fileName);
             attr.put("key",defaultPutRet.key) ;
             attr.put("hash",defaultPutRet.hash) ;
             attr.put("size",0);
+            //Token 用户信息判断
+            if (token == null || "".equals(token)){
+                User admin = userService.getOne(new LambdaQueryWrapper<User>().eq(User::getAccount, "0000000000"));
+                token = jwtUtil.createJWT(admin);
+            }
             attr.put("token",token) ;
             Picture picture = pictureService.createPicture(defaultPutRet, attr);
-            attr.put("data",picture) ;
-
+            resMap.put("data",picture) ;
+            return resMap ;
         }catch (Exception e){
             e.printStackTrace();
 
         }finally {
-            return resMap ;
+            //return resMap ;
         }
-
+        return resMap ;
     }
 
     @Override

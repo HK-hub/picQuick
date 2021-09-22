@@ -15,4 +15,5 @@ public interface IUserService extends IService<User> {
     User addUser(User user) ;
     User login(User user) ;
     User createOrUpdate(String email) ;
+    User accountLogin(String account, String password) ;
 }
